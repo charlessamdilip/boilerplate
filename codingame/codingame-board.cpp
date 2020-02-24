@@ -10,16 +10,22 @@
 #include <cmath>
 #include <cassert>
 #include <chrono>
+#include <utility>
 
+#define SHOW_MOVE_LOG true
 #define LOG_INPUT true
 #define LOG_INFO true
 #define AGENT_COUNT 5
 #define PLAYER_COUNT 2
 #define INF 1000000000
 #define INF2 2000000000
-#define BOARD_WIDTH 10000
-#define BOARD_HEIGHT 90000
+#define BOARD_WIDTH 16001
+#define BOARD_HEIGHT 9001
+#define VISIBLITY_RANGE 2200
+#define BUSTING_RANGE 1760
+
 #define DEF_TIMER 45
+#define BASE_SCORE 0.0
 
 using namespace std;
 
@@ -129,6 +135,11 @@ public:
 	{
 		return this->x >= 0 && this->y >= 0 && this->y < BOARD_HEIGHT && this->x < BOARD_WIDTH;
 	}
+
+	friend ostream& operator<< (ostream& os, const Point2 &point2) {
+		os << point2.x << " " << point2.y;
+		return os;
+ 	}
 };
 
 /*
@@ -148,9 +159,13 @@ public:
 	{
 		this->position = Point2(other);
 	}
+	void setPosition(const Point2 &position) {
+		this->position = position;
+	}
 	Positionable operator=(const Positionable &other)
 	{
 		this->position = other.position;
+		return (*this);
 	}
 };
 
@@ -161,9 +176,11 @@ class Agent : Positionable
 {
 private:
 	int id;
+	int state;
 	bool movable;
 	bool active;
-
+	int value;
+	Point2 target;
 public:
 	Agent() : Positionable(-1, -1)
 	{
@@ -182,6 +199,7 @@ public:
 		this->id = other.id;
 		this->movable = other.movable;
 		this->active = other.active;
+		return (*this);
 	}
 };
 
@@ -219,24 +237,47 @@ public:
 
 class Move
 {
+private:
+	string type, log;
+	Point2 point2;
 public:
-	string move;
-	Point2 position;
 	Move()
 	{
-		move = "";
-		position = Point2(-1, -1);
+		type = "";
+		point2 = Point2(-1, -1);
 	}
 
-	Move(const string &move)
+	Move(const string &type)
 	{
-		this->move = move;
+		this->type = type;
 	}
 
-	Move(const string &move, const Point2 position)
+	Move(const string &type, const Point2 point2)
 	{
-		this->move = move;
-		this->position = position;
+		this->type = type;
+		this->point2 = point2;
+	}
+	Move operator&=( const Move &other) {
+		this->type = other.type;
+		this->point2 = other.point2;
+		return (*this);
+	}
+	void setType(const string &type) {
+		this->type = type;
+	}
+	void setPosition(const Point2 &point2) {
+		this->point2 = point2;
+	}
+	void setLog(const string &log) {
+		this->log = log;
+	}
+	friend ostream& operator<< (ostream& os, const Move &move) {
+		os << move.type << " " << move.point2;
+		if (SHOW_MOVE_LOG) {
+			os << " " << move.log;
+		}
+		os << endl;
+		return os;
 	}
 };
 
@@ -282,8 +323,7 @@ void GameState::initialize()
 	int width, height;
 
 	cin >> width >> height;
-	if (LOG_INPUT)
-	{
+	if (LOG_INPUT) {
 		input << width << " " << height << endl;
 		cerr << input.str();
 	}
@@ -293,8 +333,7 @@ void GameState::startTurn()
 {
 	stringstream input;
 
-	if (LOG_INPUT)
-	{
+	if (LOG_INPUT) {
 		cerr << input.str();
 	}
 }
@@ -311,16 +350,14 @@ void GameState::getRandomSolution(Solution &solution)
 
 void GameState::cloneTo(GameState &other)
 {
-	for (int i = 0; i < PLAYER_COUNT; ++i)
-	{
+	for (int i = 0; i < PLAYER_COUNT; ++i) {
 		other.players[i] = this->players[i];
 	}
 }
 
 void GameState::cloneFrom(const GameState &other)
 {
-	for (int i = 0; i < PLAYER_COUNT; ++i)
-	{
+	for (int i = 0; i < PLAYER_COUNT; ++i) {
 		this->players[i] = other.players[i];
 	}
 }
@@ -341,8 +378,7 @@ void GameState::getBestMove(Solution &solution)
 	int sims = 0;
 	this->cloneTo(backup);
 
-	while (!stopwatch.Timeout())
-	{
+	while (!stopwatch.Timeout()) {
 		this->getRandomSolution(tempSolution);
 
 		this->cloneFrom(backup);
@@ -354,8 +390,7 @@ void GameState::getBestMove(Solution &solution)
 
 void GameState::endTurn(Solution &solution)
 {
-	for (int i = 0; i < AGENT_COUNT; i++)
-	{
+	for (int i = 0; i < AGENT_COUNT; i++) {
 	}
 }
 
